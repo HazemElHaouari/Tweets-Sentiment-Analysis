@@ -1,0 +1,105 @@
+/*
+  Polytech 5A - Big Data/Hadoop
+	Année 2015/2016
+  --
+  TP1: exemple de programme Hadoop - compteur d'occurences de mots.
+  --
+  WCountMap.java: classe MAP.
+*/
+
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.IntWritable;
+
+import java.util.HashMap;
+import java.util.StringTokenizer;
+
+import org.apache.hadoop.mapreduce.Mapper;
+
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
+
+// Notre classe MAP.
+public class SentimentsMap extends Mapper<Object, Text, Text,IntWritable > {//IntWritable 
+    
+
+    // La fonction MAP elle-même.
+    protected void map(Object key, Text value, Context context)
+    		throws IOException,InterruptedException{
+    	HashMap<String, Integer> dictionary = getDictionnary();
+    	 String hashTag;
+         String commentaire;
+         String msg;
+         String line = value.toString();
+         String[] tuple = line.split("\\n");
+         try{
+             for(int i=0;i<tuple.length; i++){
+                 JSONObject obj = new JSONObject(tuple[i]);
+                 msg = obj.getString("msg");
+                 if (msg.contains("#")){
+                 commentaire=msg.replace("#","");
+                 //#mot
+                 int index = msg.indexOf("#");
+                 String tmp =msg.substring(index+1);
+                 String [] tmpStr = tmp.split(" ");
+                 hashTag=tmpStr[0];
+                 
+                 
+                 StringTokenizer tok = new StringTokenizer(commentaire, " ");
+                 while (tok.hasMoreTokens()) {
+
+                     String wordToTest = tok.nextToken().toLowerCase();
+
+                    IntWritable sent = new IntWritable(0);
+
+                     if (dictionary.containsKey(wordToTest)) {
+                         sent = new IntWritable(dictionary.get(wordToTest));
+                     }
+                    // if (!wordToTest.contains("#"))
+                     context.write(new Text("#"+hashTag.toLowerCase()),sent);
+                 }
+             }
+                 //context.write(new Text("#"+hashTag),new Text(hashTag));
+                
+             }
+         }catch(JSONException e){
+             e.printStackTrace();
+         }
+     }
+    private HashMap<String, Integer> getDictionnary()
+            throws FileNotFoundException, IOException {
+
+        Path pt = new Path("/workshop/dictionary.txt");
+        FileSystem fs = FileSystem.get(new Configuration());
+        HashMap<String, Integer> data = new HashMap<String, Integer>();
+        BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt)));
+        String line;
+        StringTokenizer st;
+
+        while ((line = br.readLine())  != null) {
+            
+            st = new StringTokenizer(line);
+
+           
+            String word = st.nextToken();
+            String note = st.nextToken();
+           
+            
+            data.put(word.toLowerCase(), new Integer(note));
+        }
+
+        return data;
+
+    }
+    
+   
+  }
